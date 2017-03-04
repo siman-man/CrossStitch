@@ -113,7 +113,6 @@ class CrossStitch {
       init(pattern);
 
       createFirstPath();
-      //vector<string> answer = path2answer(path);
 
       for (int i = 0; i < C; i++) {
         char color = 'a' + i;
@@ -180,24 +179,6 @@ class CrossStitch {
       return answer;
     }
 
-    vector<string> path2answer(vector<PinHole> points) {
-      int psize = points.size();
-      vector<string> answer;
-      map<char, bool> checkList;
-
-      for (int i = 0; i < psize; i++) {
-        PinHole ph = points[i];
-        if (!checkList[ph.color]) {
-          checkList[ph.color] = true;
-          answer.push_back(string(1, ph.color));
-        }
-        answer.push_back(ph.start_p.to_s());
-        answer.push_back(ph.end_p.to_s());
-      }
-
-      return answer;
-    }
-
     void cleanPath(vector<PinHole> &path) {
       int psize = path.size();
 
@@ -243,6 +224,7 @@ class CrossStitch {
     vector<PinHole> needlework(vector<PinHole> path, double LIMIT = 2.0) {
       startCycle = getCycle();
       int minLength = calcThreadLength(path);
+      int goodLength = minLength;
       int length = 0;
       int psize = path.size();
       vector<PinHole> bestPath = path;
@@ -250,22 +232,33 @@ class CrossStitch {
 
       double currentTime = getTime(sc);
       ll tryCount = 0;
+      int R = 1000000;
+      double k = 0.5;
 
       while (currentTime < LIMIT) {
+        double remainTime = LIMIT - currentTime;
         int i = xor128()%psize;
         int j = xor128()%psize;
 
-        length = minLength + swapPinHole(i, j, path);
+        double diffLength = swapPinHole(i, j, path);
+        length = goodLength + diffLength;
 
         if (minLength > length) {
           bestPath = path;
           minLength = length;
+        }
+        if (goodLength > length || (xor128()%R < R*exp(-diffLength/(k*remainTime)))) {
+          goodLength = length;
         } else {
           swapPinHole(i, j, path);
         }
 
         currentTime = getTime(sc);
         tryCount++;
+
+        if (tryCount % 1000000 == 0 && diffLength > 0) {
+          fprintf(stderr,"diff = %f, rate = %f\n", diffLength, exp(-diffLength/(k*remainTime)));
+        }
       }
 
       fprintf(stderr, "tryCount = %lld\n", tryCount);
