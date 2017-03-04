@@ -40,67 +40,139 @@ const int DX[4] = {1, -1, -1, 1};
 struct Point {
   int y;
   int x;
+
+  Point(int y = -1, int x = -1) {
+    this->y = y;
+    this->x = x;
+  }
+
+  string to_s() {
+    return to_string(y) + " " + to_string(x);
+  }
 };
 
-struct Pinhole {
+struct PinHole {
+  char color;
   Point start_p;
   Point end_p;
+
+  PinHole(char color = -1, Point sp = Point(), Point ep = Point()) {
+    this->color = color;
+    this->start_p = sp;
+    this->end_p = ep;
+  }
+
+  void swap() {
+    Point temp = end_p;
+    end_p = start_p;
+    start_p = temp;
+  }
 };
 
 ll startCycle;
 int S;
+int C;
+vector<string> g_pattern;
 
 class CrossStitch {
   public:
     void init (vector<string> pattern) {
       S = pattern.size();
+      C = 0;
+      g_pattern = pattern;
+
+      for (int y = 0; y < S; y++) {
+        for (int x = 0; x < S; x++) {
+          C = max(C, pattern[y][x] - 'a' + 1);
+        }
+      }
+
+      fprintf(stderr,"S = %d, C = %d\n", S, C);
     }
 
     vector<string> embroider(vector<string> pattern) {
       vector<string> ret;
+
       init(pattern);
-      // for each color, for each cell (r, c) do two stitches (r+1, c)-(r, c+1)-(r+1, c+1)-(r, c)
-      for (char col = 'a'; col <= 'z'; ++col) {
-        bool first = true;
-        for (int r = 0; r < S; ++r)
-          for (int c = 0; c < S; ++c)
-            if (pattern[r][c] == col) {
-              if (first) {
-                ret.push_back(string(1, col));
-                first = false;
-              }
-              ret.push_back(to_string(r+1) + " " + to_string(c));
-              ret.push_back(to_string(r) + " " + to_string(c+1));
-              ret.push_back(to_string(r+1) + " " + to_string(c+1));
-              ret.push_back(to_string(r) + " " + to_string(c));
-            }
-      }
-      return ret;
+
+      vector<PinHole> path = createFirstPath();
+      vector<string> answer = path2answer(path);
+      
+      return answer;
     }
 
-    void createFirstPath() {
-      int bestLength = 0;
-      int length = 0;
+    double calcScore(vector<PinHole> points) {
+      int psize = points.size();
+    }
+
+    vector<string> path2answer(vector<PinHole> points) {
+      int psize = points.size();
+      vector<string> answer;
+      unordered_map<char, bool> checkList;
+
+      for (int i = 0; i < psize; i++) {
+        PinHole ph = points[i];
+        if (!checkList[ph.color]) {
+          checkList[ph.color] = true;
+          answer.push_back(string(1, ph.color));
+        }
+        answer.push_back(ph.start_p.to_s());
+        answer.push_back(ph.end_p.to_s());
+      }
+
+      return answer;
+    }
+
+    vector<PinHole> createFirstPath() {
+      vector<PinHole> path;
+
+      for (char color = 'a'; color <= 'z'; color++) {
+        for (int y = 0; y < S; y++) {
+          for (int x = 0; x < S; x++) {
+            if (g_pattern[y][x] == color) {
+              Point sp1(y, x);
+              Point ep1(y+1, x+1);
+              path.push_back(createPinHole(color, sp1, ep1));
+
+              Point sp2(y+1, x);
+              Point ep2(y, x+1);
+              path.push_back(createPinHole(color, sp2, ep2));
+            }
+          }
+        }
+      }
+
+      return path;
+    }
+
+    PinHole createPinHole(char color, Point sp, Point ep) {
+      return PinHole(color, sp, ep);
     }
 
     void needlework() {
       startCycle = getCycle();
+      int bestLength = 0;
+      int length = 0;
 
       double currentTime = getTime(startCycle);
+      ll tryCount = 0;
 
       while (currentTime < TIME_LIMIT) {
 
         currentTime = getTime(startCycle);
+        tryCount++;
       }
+
+      fprintf(stderr, "tryCount = %lld\n", tryCount);
     }
 
-    int calcThreadLength (vector<Pinhole> &npoints) {
+    int calcThreadLength (vector<PinHole> &npoints) {
       int length = 0;
       int size = npoints.size();
 
       for (int i = 1; i < size; i++) {
-        Pinhole ph1 = npoints[i-1];
-        Pinhole ph2 = npoints[i];
+        PinHole ph1 = npoints[i-1];
+        PinHole ph2 = npoints[i];
 
         int dy = ph2.start_p.y - ph1.end_p.y;
         int dx = ph2.start_p.x - ph1.end_p.x;
@@ -124,6 +196,8 @@ int main() {
   CrossStitch cs;
   vector<string> ret = cs.embroider(pattern);
   cout << ret.size() << endl;
-  for (int i = 0; i < (int)ret.size(); ++i) { cout << ret[i] << endl; }
+  for (int i = 0; i < (int)ret.size(); ++i) {
+    cout << ret[i] << endl;
+  }
   cout.flush();
 }
