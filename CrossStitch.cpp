@@ -71,19 +71,27 @@ struct PinHole {
 
 ll startCycle;
 int S;
+int N;
 int C;
 vector<string> g_pattern;
+unordered_map<char, int> g_colorSize;
 
 class CrossStitch {
   public:
     void init (vector<string> pattern) {
       S = pattern.size();
       C = 0;
+      N = 0;
       g_pattern = pattern;
 
       for (int y = 0; y < S; y++) {
         for (int x = 0; x < S; x++) {
-          C = max(C, pattern[y][x] - 'a' + 1);
+          char color = pattern[y][x];
+          if (color == '.') continue;
+
+          N++;
+          g_colorSize[color]++;
+          C = max(C, color - 'a' + 1);
         }
       }
 
@@ -97,12 +105,20 @@ class CrossStitch {
 
       vector<PinHole> path = createFirstPath();
       vector<string> answer = path2answer(path);
-      
+
+      fprintf(stderr,"CurrentScore = %f\n", calcScore(path));
+
       return answer;
     }
 
     double calcScore(vector<PinHole> points) {
       int psize = points.size();
+      double L = N * 2 * sqrt(2);
+      double W = calcThreadLength(points);
+
+      fprintf(stderr,"W = %f, L = %f\n", W, L);
+
+      return max(0.0, pow((5 - W / L) / 5, 3));
     }
 
     vector<string> path2answer(vector<PinHole> points) {
@@ -166,16 +182,18 @@ class CrossStitch {
       fprintf(stderr, "tryCount = %lld\n", tryCount);
     }
 
-    int calcThreadLength (vector<PinHole> &npoints) {
-      int length = 0;
+    double calcThreadLength (vector<PinHole> &npoints) {
+      double length = 0.0;
       int size = npoints.size();
 
-      for (int i = 1; i < size; i++) {
-        PinHole ph1 = npoints[i-1];
-        PinHole ph2 = npoints[i];
+      for (int i = 0; i < size-1; i++) {
+        PinHole ph1 = npoints[i];
+        PinHole ph2 = npoints[i+1];
 
-        int dy = ph2.start_p.y - ph1.end_p.y;
-        int dx = ph2.start_p.x - ph1.end_p.x;
+        if (ph1.color != ph2.color) continue;
+
+        int dy = ph1.end_p.y - ph2.start_p.y;
+        int dx = ph1.end_p.x - ph2.start_p.x;
         length += sqrt(dy*dy + dx*dx);
       }
 
