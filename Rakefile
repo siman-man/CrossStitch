@@ -3,7 +3,8 @@ require 'open3'
 PROBLEM_NAME = 'CrossStitch'
 ROUND_ID = 16887
 TESTER = 'tester.jar'
-SEED = 2
+#SEED = 2
+SEED = 2592
 
 desc 'c++ file compile'
 task :default do
@@ -18,7 +19,7 @@ end
 desc 'exec and view result'
 task :run do
   Rake::Task['compile'].invoke
-  system("java -jar ./#{TESTER} -seed #{SEED} -exec './#{PROBLEM_NAME}'")
+  system("java -jar ./#{TESTER} -seed #{SEED} -backOnly -exec './#{PROBLEM_NAME}'")
 end
 
 desc 'check single'

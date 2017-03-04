@@ -73,18 +73,6 @@ struct PinHole {
     end_p = start_p;
     start_p = temp;
   }
-
-  double afterLength(PinHole ph) {
-    int dy = end_p.y - ph.start_p.y;
-    int dx = end_p.x - ph.start_p.x;
-    return sqrt(dy*dy + dx*dx);
-  }
-
-  double beforeLength(PinHole ph) {
-    int dy = ph.end_p.y - start_p.y;
-    int dx = ph.end_p.x - start_p.x;
-    return sqrt(dy*dy + dx*dx);
-  }
 };
 
 ll startCycle;
@@ -92,7 +80,6 @@ int S;
 int N;
 int C;
 vector<string> g_pattern;
-map<char, int> g_colorSize;
 map<char, vector<PinHole> > g_paths;
 
 class CrossStitch {
@@ -109,7 +96,6 @@ class CrossStitch {
           if (color == '.') continue;
 
           N++;
-          g_colorSize[color]++;
           C = max(C, color - 'a' + 1);
         }
       }
@@ -122,11 +108,11 @@ class CrossStitch {
 
       init(pattern);
 
-      //createFirstPath();
       createNNPath();
 
       for (int i = 0; i < C; i++) {
         char color = 'a' + i;
+        //g_paths[color] = simpleNeedlework(g_paths[color], TIME_LIMIT/C);
         g_paths[color] = needlework(g_paths[color], TIME_LIMIT/C);
       }
 
@@ -194,11 +180,8 @@ class CrossStitch {
       int psize = path.size();
 
       for (int i = 0; i < psize-1; i++) {
-        PinHole *ph1 = &path[i];
-        PinHole *ph2 = &path[i+1];
-
-        if (ph1->end_p.y == ph2->start_p.y && ph1->end_p.x == ph2->start_p.x) {
-          ph2->swapHole();
+        if (path[i].end_p == path[i+1].start_p) {
+          path[i+1].swapHole();
         }
       }
     }
@@ -262,25 +245,6 @@ class CrossStitch {
       }
     }
 
-    void createFirstPath() {
-      for (char color = 'a'; color <= 'z'; color++) {
-        for (int y = 0; y < S; y++) {
-          for (int x = 0; x < S; x++) {
-            if (g_pattern[y][x] == color) {
-              Point sp1(y, x);
-              Point ep1(y+1, x+1);
-              g_paths[color].push_back(createPinHole(color, sp1, ep1));
-
-              Point sp2(y+1, x);
-              Point ep2(y, x+1);
-              g_paths[color].push_back(createPinHole(color, sp2, ep2));
-            }
-          }
-        }
-        cleanPath(g_paths[color]);
-      }
-    }
-
     PinHole createPinHole(char color, Point sp, Point ep) {
       return PinHole(color, sp, ep);
     }
@@ -297,20 +261,21 @@ class CrossStitch {
       double currentTime = getTime(sc);
       ll tryCount = 0;
       int R = 1000000;
-      double k = 0.5;
+      double k = 0.4;
       double diffLength = 0.0;
 
       while (currentTime < LIMIT) {
         double remainTime = LIMIT - currentTime;
-        int ope = xor128()%4;
+        int ope = xor128()%3;
         int i = xor128()%psize;
         int j = xor128()%psize;
+
+        if (i == j) continue;
 
         switch(ope) {
           case 0:
             swapPinHoleNonDiff(i, j, path);
             if (isCorrectHole(i, path) && isCorrectHole(j, path)) {
-              swapPinHoleNonDiff(i, j, path);
               diffLength = swapPinHole(i, j, path);
             } else {
               swapPinHoleNonDiff(i, j, path);
@@ -320,28 +285,25 @@ class CrossStitch {
           case 1:
             diffLength = switchHole(i, path);
             if (!isCorrectHole(i, path)) {
-              switchHole(i, path);
+              path[i].swapHole();
               continue;
             }
             break;
           case 2:
-            resolveConflict(i, j, path);
-            if (isCorrectPath(path)) {
-              int l = calcThreadLength(path);
-              diffLength = l - goodLength;
+            insertPinHole(i, j, path);
+            if (isCorrectHole(i, path) && isCorrectHole(j, path)) {
+              diffLength = calcThreadLength(path) - goodLength;
             } else {
-              resolveConflict(i, j, path);
+              insertPinHole(j, i, path);
               continue;
             }
             break;
           case 3:
-            double bl = calcLength(i, path) + calcLength(j, path);
-            insertPinHole(i, j, path);
-            if (isCorrectHole(i, path) && isCorrectHole(j, path)) {
-              double al = calcLength(i, path) + calcLength(j, path);
-              diffLength = al - bl;
+            resolveConflict(i, j, path);
+            if (isCorrectPath(path)) {
+              diffLength = calcThreadLength(path) - goodLength;
             } else {
-              insertPinHole(j, i, path);
+              resolveConflict(i, j, path);
               continue;
             }
             break;
@@ -362,13 +324,13 @@ class CrossStitch {
               swapPinHoleNonDiff(i, j, path);
               break;
             case 1:
-              switchHole(i, path);
+              path[i].swapHole();
               break;
             case 2:
-              resolveConflict(i, j, path);
+              insertPinHole(j, i, path);
               break;
             case 3:
-              insertPinHole(j, i, path);
+              resolveConflict(i, j, path);
               break;
           }
         }
@@ -377,13 +339,89 @@ class CrossStitch {
         tryCount++;
 
         if (tryCount % 1000000 == 0 && diffLength > 0) {
-          fprintf(stderr,"diff = %f, rate = %f\n", diffLength, exp(-diffLength/(k*remainTime)));
+          //fprintf(stderr,"diff = %f, rate = %f\n", diffLength, exp(-diffLength/(k*remainTime)));
         }
       }
 
       //cleanPath(bestPath);
 
-      fprintf(stderr, "tryCount = %lld\n", tryCount);
+      //fprintf(stderr, "tryCount = %lld\n", tryCount);
+      return bestPath;
+    }
+
+    vector<PinHole> simpleNeedlework(vector<PinHole> path, double LIMIT = 2.0) {
+      startCycle = getCycle();
+      int minLength = calcThreadLength(path);
+      int goodLength = minLength;
+      int length = 0;
+      int psize = path.size();
+      vector<PinHole> bestPath = path;
+      ll sc = getCycle();
+
+      double currentTime = getTime(sc);
+      ll tryCount = 0;
+      int R = 1000000;
+      double k = 0.4;
+      double diffLength = 0.0;
+
+      while (currentTime < LIMIT) {
+        double remainTime = LIMIT - currentTime;
+        int ope = xor128()%4;
+        int i = xor128()%psize;
+        int j = xor128()%psize;
+
+        if (i == j) continue;
+
+        switch(ope) {
+          case 0:
+            diffLength = swapPinHole(i, j, path);
+            break;
+          case 1:
+            diffLength = switchHole(i, path);
+            break;
+          case 2:
+            insertPinHole(i, j, path);
+            diffLength = calcThreadLength(path) - goodLength;
+            break;
+          case 3:
+            resolveConflict(i, j, path);
+            diffLength = calcThreadLength(path) - goodLength;
+            break;
+        }
+
+        length = goodLength + diffLength;
+
+        if (minLength > length) {
+          bestPath = path;
+          minLength = length;
+        }
+
+        if (goodLength > length || (xor128()%R < R*exp(-diffLength/(k*remainTime)))) {
+          goodLength = length;
+        } else {
+          switch(ope) {
+            case 0:
+              swapPinHoleNonDiff(i, j, path);
+              break;
+            case 1:
+              path[i].swapHole();
+              break;
+            case 2:
+              insertPinHole(j, i, path);
+              break;
+            case 3:
+              resolveConflict(i, j, path);
+              break;
+          }
+        }
+
+        currentTime = getTime(sc);
+        tryCount++;
+      }
+
+      cleanPath(bestPath);
+
+      //fprintf(stderr, "tryCount = %lld\n", tryCount);
       return bestPath;
     }
 
@@ -398,18 +436,12 @@ class CrossStitch {
     }
 
     bool isCorrectHole(int i, vector<PinHole> &path) {
-      int psize = path.size();
-
       if (i > 0) {
-        PinHole ph1 = path[i];
-        PinHole ph2 = path[i-1];
-        if (ph1.start_p == ph2.end_p) return false;
+        if (path[i].start_p == path[i-1].end_p) return false;
       }
 
-      if (i < psize-1) {
-        PinHole ph1 = path[i];
-        PinHole ph2 = path[i+1];
-        if (ph1.end_p == ph2.start_p) return false;
+      if (i < path.size()-1) {
+        if (path[i].end_p == path[i+1].start_p) return false;
       }
 
       return true;
@@ -439,45 +471,42 @@ class CrossStitch {
     }
 
     double switchHole(int i, vector<PinHole> &path) {
-      PinHole *ph1 = &path[i];
       double beforeLength = calcLength(i, path);
-      ph1->swapHole();
+      path[i].swapHole();
       double afterLength = calcLength(i, path);
       return afterLength - beforeLength;
     }
 
     double swapPinHole(int i, int j, vector<PinHole> &path) {
-      PinHole ph1 = path[i];
-      PinHole ph2 = path[j];
+      PinHole temp = path[i];
       double beforeLength = calcLength(i, path) + calcLength(j, path);
-      path[i] = ph2;
-      path[j] = ph1;
+
+      path[i] = path[j];
+      path[j] = temp;
+
       double afterLength = calcLength(i, path) + calcLength(j, path);
 
       return afterLength - beforeLength;
     }
 
     void swapPinHoleNonDiff(int i, int j, vector<PinHole> &path) {
-      PinHole ph1 = path[i];
-      PinHole ph2 = path[j];
-      path[i] = ph2;
-      path[j] = ph1;
+      PinHole temp = path[i];
+      path[i] = path[j];
+      path[j] = temp;
     }
 
     double calcLength(int i, vector<PinHole> &path) {
       double length = 0.0;
-      int psize = path.size();
+      PinHole ph2 = path[i];
 
       if (i > 0) {
-        PinHole ph1 = path[i];
-        PinHole ph2 = path[i-1];
-        length += ph1.beforeLength(ph2);
+        PinHole ph1 = path[i-1];
+        length += ph2.start_p.dist(ph1.end_p);
       }
 
-      if (i < psize-1) {
-        PinHole ph1 = path[i];
-        PinHole ph2 = path[i+1];
-        length += ph1.afterLength(ph2);
+      if (i < path.size()-1) {
+        PinHole ph3 = path[i+1];
+        length += ph2.end_p.dist(ph3.start_p);
       }
 
       return length;
@@ -492,15 +521,13 @@ class CrossStitch {
         PinHole ph2 = npoints[i+1];
 
         if (ph1.color != ph2.color) continue;
-
-        int dy = ph1.end_p.y - ph2.start_p.y;
-        int dx = ph1.end_p.x - ph2.start_p.x;
-        length += sqrt(dy*dy + dx*dx);
+        length += ph1.end_p.dist(ph2.start_p);
       }
 
       return length;
     }
 };
+
 // -------8<------- end of solution submitted to the website -------8<-------
 
 template<class T> void getVector(vector<T>& v) {
@@ -509,7 +536,7 @@ template<class T> void getVector(vector<T>& v) {
 int main() {
   int S;
   cin >> S;
-  TIME_LIMIT = 2.0;
+  TIME_LIMIT = 1.0;
   vector<string> pattern(S);
   getVector(pattern);
   CrossStitch cs;

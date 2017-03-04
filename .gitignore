@@ -3,3 +3,5 @@ CrossStitch
 /data
 *.txt
 Rakefile
+*.png
+parse.rb
