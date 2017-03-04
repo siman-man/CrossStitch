@@ -5,7 +5,7 @@
 #include <iostream>
 #include <string.h>
 #include <cassert>
-#include <unordered_map>
+#include <map>
 #include <sstream>
 #include <vector>
 #include <string>
@@ -33,10 +33,6 @@ double getTime(unsigned long long int begin_cycle) {
   return (double)(getCycle() - begin_cycle) / CYCLE_PER_SEC;
 }
 
-// ↘ ↙ ↖ ↗
-const int DY[4] = {1, 1, -1, -1};
-const int DX[4] = {1, -1, -1, 1};
-
 struct Point {
   int y;
   int x;
@@ -62,10 +58,22 @@ struct PinHole {
     this->end_p = ep;
   }
 
-  void swap() {
+  void swapHole() {
     Point temp = end_p;
     end_p = start_p;
     start_p = temp;
+  }
+
+  double afterLength(PinHole ph) {
+    int dy = end_p.y - ph.start_p.y;
+    int dx = end_p.x - ph.start_p.x;
+    return sqrt(dy*dy + dx*dx);
+  }
+
+  double beforeLength(PinHole ph) {
+    int dy = ph.end_p.y - start_p.y;
+    int dx = ph.end_p.x - start_p.x;
+    return sqrt(dy*dy + dx*dx);
   }
 };
 
@@ -74,7 +82,8 @@ int S;
 int N;
 int C;
 vector<string> g_pattern;
-unordered_map<char, int> g_colorSize;
+map<char, int> g_colorSize;
+map<char, vector<PinHole> > g_paths;
 
 class CrossStitch {
   public:
@@ -95,7 +104,7 @@ class CrossStitch {
         }
       }
 
-      fprintf(stderr,"S = %d, C = %d\n", S, C);
+      fprintf(stderr,"S = %d, C = %d, N = %d\n", S, C, N);
     }
 
     vector<string> embroider(vector<string> pattern) {
@@ -103,8 +112,16 @@ class CrossStitch {
 
       init(pattern);
 
-      vector<PinHole> path = createFirstPath();
-      vector<string> answer = path2answer(path);
+      createFirstPath();
+      //vector<string> answer = path2answer(path);
+
+      for (int i = 0; i < C; i++) {
+        char color = 'a' + i;
+        g_paths[color] = needlework(g_paths[color], TIME_LIMIT/C);
+      }
+
+      vector<PinHole> path = createPath();
+      vector<string> answer = createAnswer();
 
       fprintf(stderr,"CurrentScore = %f\n", calcScore(path));
 
@@ -112,7 +129,6 @@ class CrossStitch {
     }
 
     double calcScore(vector<PinHole> points) {
-      int psize = points.size();
       double L = N * 2 * sqrt(2);
       double W = calcThreadLength(points);
 
@@ -121,10 +137,53 @@ class CrossStitch {
       return max(0.0, pow((5 - W / L) / 5, 3));
     }
 
+    vector<PinHole> createPath() {
+      vector<PinHole> paths;
+
+      map<char, vector<PinHole> >::iterator it = g_paths.begin();
+
+      while (it != g_paths.end()) {
+        vector<PinHole> path = (*it).second;
+        int psize = path.size();
+
+        for (int i = 0; i < psize; i++) {
+          paths.push_back(path[i]);
+        }
+
+        it++;
+      }
+
+      return paths;
+    }
+
+    vector<string> createAnswer() {
+      vector<string> answer;
+      map<char, vector<PinHole> >::iterator it = g_paths.begin();
+
+      while (it != g_paths.end()) {
+        char color = (*it).first;
+        vector<PinHole> path = (*it).second;
+        int psize = path.size();
+
+        for (int i = 0; i < psize; i++) {
+          if (i == 0) {
+            answer.push_back(string(1, color));
+          }
+          PinHole ph = path[i];
+          answer.push_back(ph.start_p.to_s());
+          answer.push_back(ph.end_p.to_s());
+        }
+
+        it++;
+      }
+
+      return answer;
+    }
+
     vector<string> path2answer(vector<PinHole> points) {
       int psize = points.size();
       vector<string> answer;
-      unordered_map<char, bool> checkList;
+      map<char, bool> checkList;
 
       for (int i = 0; i < psize; i++) {
         PinHole ph = points[i];
@@ -139,6 +198,19 @@ class CrossStitch {
       return answer;
     }
 
+    void cleanPath(vector<PinHole> &path) {
+      int psize = path.size();
+
+      for (int i = 0; i < psize-1; i++) {
+        PinHole *ph1 = &path[i];
+        PinHole *ph2 = &path[i+1];
+
+        if (ph1->end_p.y == ph2->start_p.y && ph1->end_p.x == ph2->start_p.x) {
+          ph2->swapHole();
+        }
+      }
+    }
+
     vector<PinHole> createFirstPath() {
       vector<PinHole> path;
 
@@ -149,13 +221,16 @@ class CrossStitch {
               Point sp1(y, x);
               Point ep1(y+1, x+1);
               path.push_back(createPinHole(color, sp1, ep1));
+              g_paths[color].push_back(createPinHole(color, sp1, ep1));
 
               Point sp2(y+1, x);
               Point ep2(y, x+1);
               path.push_back(createPinHole(color, sp2, ep2));
+              g_paths[color].push_back(createPinHole(color, sp2, ep2));
             }
           }
         }
+        cleanPath(g_paths[color]);
       }
 
       return path;
@@ -165,21 +240,66 @@ class CrossStitch {
       return PinHole(color, sp, ep);
     }
 
-    void needlework() {
+    vector<PinHole> needlework(vector<PinHole> path, double LIMIT = 2.0) {
       startCycle = getCycle();
-      int bestLength = 0;
+      int minLength = calcThreadLength(path);
       int length = 0;
+      int psize = path.size();
+      vector<PinHole> bestPath = path;
+      ll sc = getCycle();
 
-      double currentTime = getTime(startCycle);
+      double currentTime = getTime(sc);
       ll tryCount = 0;
 
-      while (currentTime < TIME_LIMIT) {
+      while (currentTime < LIMIT) {
+        int i = xor128()%psize;
+        int j = xor128()%psize;
 
-        currentTime = getTime(startCycle);
+        length = minLength + swapPinHole(i, j, path);
+
+        if (minLength > length) {
+          bestPath = path;
+          minLength = length;
+        } else {
+          swapPinHole(i, j, path);
+        }
+
+        currentTime = getTime(sc);
         tryCount++;
       }
 
       fprintf(stderr, "tryCount = %lld\n", tryCount);
+      return bestPath;
+    }
+
+    double swapPinHole(int i, int j, vector<PinHole> &path) {
+      PinHole ph1 = path[i];
+      PinHole ph2 = path[j];
+      double beforeLength = calcLength(i, path) + calcLength(j, path);
+      path[i] = ph2;
+      path[j] = ph1;
+      double afterLength = calcLength(i, path) + calcLength(j, path);
+
+      return afterLength - beforeLength;
+    }
+
+    double calcLength(int i, vector<PinHole> &path) {
+      double length = 0.0;
+      int psize = path.size();
+
+      if (i > 0) {
+        PinHole ph1 = path[i];
+        PinHole ph2 = path[i-1];
+        length += ph1.beforeLength(ph2);
+      }
+
+      if (i < psize-1) {
+        PinHole ph1 = path[i];
+        PinHole ph2 = path[i+1];
+        length += ph1.afterLength(ph2);
+      }
+
+      return length;
     }
 
     double calcThreadLength (vector<PinHole> &npoints) {

@@ -27,7 +27,7 @@ class Analyze
       end
 
       #p seeds
-      puts sum_score
+      puts "AVE: #{sum_score / data_list.size * 1_000_000}"
     ensure
       @record&.close
     end
