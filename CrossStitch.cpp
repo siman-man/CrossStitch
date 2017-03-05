@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string.h>
 #include <cassert>
+#include <float.h>
 #include <map>
 #include <sstream>
 #include <vector>
@@ -80,6 +81,7 @@ int S;
 int N;
 int C;
 vector<string> g_pattern;
+map<char, vector<Point> > g_colorCoords;
 map<char, vector<PinHole> > g_paths;
 
 class CrossStitch {
@@ -96,6 +98,7 @@ class CrossStitch {
           if (color == '.') continue;
 
           N++;
+          g_colorCoords[color].push_back(Point(y,x));
           C = max(C, color - 'a' + 1);
         }
       }
@@ -105,19 +108,28 @@ class CrossStitch {
 
     vector<string> embroider(vector<string> pattern) {
       vector<string> ret;
+      ll sc = getCycle();
 
       init(pattern);
 
-      createNNPath();
+      map<char, vector<Point> >::iterator it = g_colorCoords.begin();
+      while (it != g_colorCoords.end()) {
+        char color = (*it).first;
+        //g_paths[color] = createFIPath(color);
+        g_paths[color] = createNNPath(color);
+        it++;
+      }
+
+      TIME_LIMIT -= getTime(sc);
+      fprintf(stderr,"TIME_LIMIT = %f\n", TIME_LIMIT);
 
       for (int i = 0; i < C; i++) {
         char color = 'a' + i;
-        //g_paths[color] = simpleNeedlework(g_paths[color], TIME_LIMIT/C);
-        g_paths[color] = needlework(g_paths[color], TIME_LIMIT/C);
+        g_paths[color] = needlework(g_paths[color], TIME_LIMIT / C);
       }
 
       vector<PinHole> path = createPath();
-      vector<string> answer = createAnswer();
+      vector<string> answer = createAnswer(path);
 
       fprintf(stderr,"CurrentScore = %f\n", calcScore(path));
 
@@ -152,25 +164,19 @@ class CrossStitch {
       return paths;
     }
 
-    vector<string> createAnswer() {
+    vector<string> createAnswer(vector<PinHole> &path) {
       vector<string> answer;
-      map<char, vector<PinHole> >::iterator it = g_paths.begin();
+      int psize = path.size();
+      map<char, bool> checkList;
 
-      while (it != g_paths.end()) {
-        char color = (*it).first;
-        vector<PinHole> path = (*it).second;
-        int psize = path.size();
-
-        for (int i = 0; i < psize; i++) {
-          if (i == 0) {
-            answer.push_back(string(1, color));
-          }
-          PinHole ph = path[i];
-          answer.push_back(ph.start_p.to_s());
-          answer.push_back(ph.end_p.to_s());
+      for (int i = 0; i < psize; i++) {
+        PinHole ph = path[i];
+        if (!checkList[ph.color]) {
+          checkList[ph.color] = true;
+          answer.push_back(string(1, ph.color));
         }
-
-        it++;
+        answer.push_back(ph.start_p.to_s());
+        answer.push_back(ph.end_p.to_s());
       }
 
       return answer;
@@ -186,63 +192,104 @@ class CrossStitch {
       }
     }
 
-    void createNNPath() {
-      map<char, vector<Point> > colorCoords;
+    vector<PinHole> createNNPath(char color) {
+      vector<PinHole> path;
+      vector<Point> coords = g_colorCoords[color];
+      Point bp = coords[0];
+      coords.erase(coords.begin());
+      int csize = coords.size();
 
-      for (char color = 'a'; color <= 'z'; color++) {
-        for (int y = 0; y < S; y++) {
-          for (int x = 0; x < S; x++) {
-            if (g_pattern[y][x] != color) continue;
-            colorCoords[color].push_back(Point(y,x));
+      for (int i = 0; i < csize; i++) {
+        double minDist = 99999.0;
+        int minId = 0;
+        int bsize = coords.size();
+
+        path.push_back(createPinHole(color, Point(bp.y, bp.x), Point(bp.y+1, bp.x+1)));
+        path.push_back(createPinHole(color, Point(bp.y+1, bp.x), Point(bp.y, bp.x+1)));
+
+        for (int j = 0; j < bsize; j++) {
+          double dist = bp.dist(coords[j]);
+          if (minDist > dist) {
+            minDist = dist;
+            minId = j;
           }
         }
+
+        bp = coords[minId];
+        coords.erase(coords.begin() + minId);
       }
 
-      map<char, vector<Point> >::iterator it = colorCoords.begin();
-      while (it != colorCoords.end()) {
-        char color = (*it).first;
-        vector<Point> coords = (*it).second;
-        Point bp = coords[0];
-        coords.erase(coords.begin());
-        int csize = coords.size();
+      path.push_back(createPinHole(color, Point(bp.y, bp.x), Point(bp.y+1, bp.x+1)));
+      path.push_back(createPinHole(color, Point(bp.y+1, bp.x), Point(bp.y, bp.x+1)));
 
-        for (int i = 0; i < csize; i++) {
-          double minDist = 99999.0;
-          int minId = 0;
-          int bsize = coords.size();
+      cleanPath(path);
 
-          Point sp1(bp.y, bp.x);
-          Point ep1(bp.y+1, bp.x+1);
-          g_paths[color].push_back(createPinHole(color, sp1, ep1));
+      return path;
+    }
 
-          Point sp2(bp.y+1, bp.x);
-          Point ep2(bp.y, bp.x+1);
-          g_paths[color].push_back(createPinHole(color, sp2, ep2));
+    vector<PinHole> createFIPath(char color) {
+      vector<PinHole> path;
+      vector<Point> ppath;
+      vector<Point> coords = g_colorCoords[color];
+      Point p1 = coords[0];
 
-          for (int j = 0; j < bsize; j++) {
-            double dist = bp.dist(coords[j]);
-            if (minDist > dist) {
-              minDist = dist;
-              minId = j;
-            }
+      ppath.push_back(p1);
+      coords.erase(coords.begin());
+
+      int csize = coords.size();
+
+      for (int i = 0; i < csize; i++) {
+        int size = csize-i;
+        int rsize = (i+1);
+        double md = -1.0;
+        int index = 1;
+
+        for (int k = 0; k < size; k++) {
+          Point p = coords[k];
+          double mmd = DBL_MAX;
+
+          for (int j = 0; j < rsize; j++) {
+            mmd = min(mmd, p.dist(coords[j]));
           }
 
-          bp = coords[minId];
-          coords.erase(coords.begin() + minId);
+          if (md < mmd) {
+            md = mmd;
+            index = k;
+          }
         }
 
-        Point sp1(bp.y, bp.x);
-        Point ep1(bp.y+1, bp.x+1);
-        g_paths[color].push_back(createPinHole(color, sp1, ep1));
+        Point ep = coords[index];
+        coords.erase(coords.begin()+index);
 
-        Point sp2(bp.y+1, bp.x);
-        Point ep2(bp.y, bp.x+1);
-        g_paths[color].push_back(createPinHole(color, sp2, ep2));
+        double minDist = DBL_MAX;
+        int minIndex  = -1;
 
-        cleanPath(g_paths[color]);
+        for (int j = 0; j < rsize; j++) {
+          int aid = (j+1)%rsize;
 
-        it++;
+          double d1 = ep.dist(ppath[j]);
+          double d2 = ep.dist(ppath[aid]);
+          double d3 = ppath[j].dist(ppath[aid]);
+          double dist = d1 + d2 - d3;
+
+          if (minDist > dist) {
+            minDist = dist;
+            minIndex = aid;
+          }
+        }
+
+        ppath.insert(ppath.begin() + minIndex, ep);
       }
+
+      for (int i = 0; i < ppath.size(); i++) {
+        Point p = ppath[i];
+        path.push_back(createPinHole(color, Point(p.y, p.x), Point(p.y+1, p.x+1)));
+        path.push_back(createPinHole(color, Point(p.y+1, p.x), Point(p.y, p.x+1)));
+      }
+
+      cleanPath(path);
+
+      return path;
     }
 
     PinHole createPinHole(char color, Point sp, Point ep) {
@@ -263,14 +310,16 @@ class CrossStitch {
       int R = 1000000;
       double k = 0.4;
       double diffLength = 0.0;
+      int i, j;
 
       while (currentTime < LIMIT) {
         double remainTime = LIMIT - currentTime;
-        int ope = xor128()%3;
-        int i = xor128()%psize;
-        int j = xor128()%psize;
+        int ope = xor128()%2;
 
-        if (i == j) continue;
+        do {
+          i = xor128()%psize;
+          j = xor128()%psize;
+        } while (i == j);
 
         switch(ope) {
           case 0:
@@ -290,9 +339,9 @@ class CrossStitch {
             }
             break;
           case 2:
-            insertPinHole(i, j, path);
+            diffLength = insertPinHole(i, j, path);
             if (isCorrectHole(i, path) && isCorrectHole(j, path)) {
-              diffLength = calcThreadLength(path) - goodLength;
+              //diffLength = calcThreadLength(path) - goodLength;
             } else {
               insertPinHole(j, i, path);
               continue;
@@ -345,83 +394,7 @@ class CrossStitch {
 
       //cleanPath(bestPath);
 
-      //fprintf(stderr, "tryCount = %lld\n", tryCount);
-      return bestPath;
-    }
-
-    vector<PinHole> simpleNeedlework(vector<PinHole> path, double LIMIT = 2.0) {
-      startCycle = getCycle();
-      int minLength = calcThreadLength(path);
-      int goodLength = minLength;
-      int length = 0;
-      int psize = path.size();
-      vector<PinHole> bestPath = path;
-      ll sc = getCycle();
-
-      double currentTime = getTime(sc);
-      ll tryCount = 0;
-      int R = 1000000;
-      double k = 0.4;
-      double diffLength = 0.0;
-
-      while (currentTime < LIMIT) {
-        double remainTime = LIMIT - currentTime;
-        int ope = xor128()%4;
-        int i = xor128()%psize;
-        int j = xor128()%psize;
-
-        if (i == j) continue;
-
-        switch(ope) {
-          case 0:
-            diffLength = swapPinHole(i, j, path);
-            break;
-          case 1:
-            diffLength = switchHole(i, path);
-            break;
-          case 2:
-            insertPinHole(i, j, path);
-            diffLength = calcThreadLength(path) - goodLength;
-            break;
-          case 3:
-            resolveConflict(i, j, path);
-            diffLength = calcThreadLength(path) - goodLength;
-            break;
-        }
-
-        length = goodLength + diffLength;
-
-        if (minLength > length) {
-          bestPath = path;
-          minLength = length;
-        }
-
-        if (goodLength > length || (xor128()%R < R*exp(-diffLength/(k*remainTime)))) {
-          goodLength = length;
-        } else {
-          switch(ope) {
-            case 0:
-              swapPinHoleNonDiff(i, j, path);
-              break;
-            case 1:
-              path[i].swapHole();
-              break;
-            case 2:
-              insertPinHole(j, i, path);
-              break;
-            case 3:
-              resolveConflict(i, j, path);
-              break;
-          }
-        }
-
-        currentTime = getTime(sc);
-        tryCount++;
-      }
-
-      cleanPath(bestPath);
-
-      //fprintf(stderr, "tryCount = %lld\n", tryCount);
+      fprintf(stderr, "tryCount = %lld\n", tryCount);
       return bestPath;
     }
 
@@ -447,11 +420,15 @@ class CrossStitch {
       return true;
     }
 
-    void insertPinHole(int i, int j, vector<PinHole> &path) {
+    double insertPinHole(int i, int j, vector<PinHole> &path) {
       PinHole ph = path[i];
+      double beforeLength = calcLength(i, path) + calcLength(j, path);
 
       path.erase(path.begin()+i);
       path.insert(path.begin()+j, ph);
+
+      double afterLength = calcLength(i, path) + calcLength(j, path);
+      return afterLength - beforeLength;
     }
 
     void resolveConflict(int i, int j, vector<PinHole> &path) {
@@ -536,7 +513,7 @@ template<class T> void getVector(vector<T>& v) {
 int main() {
   int S;
   cin >> S;
-  TIME_LIMIT = 1.0;
+  TIME_LIMIT = 2.0;
   vector<string> pattern(S);
   getVector(pattern);
   CrossStitch cs;
