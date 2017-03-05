@@ -37,6 +37,7 @@ double getTime(unsigned long long int begin_cycle) {
 struct Point {
   int y;
   int x;
+  int z;
 
   Point(int y = -1, int x = -1) {
     this->y = y;
@@ -80,6 +81,7 @@ ll startCycle;
 int S;
 int N;
 int C;
+double DIST_TABLE[10000][10000];
 vector<string> g_pattern;
 map<char, vector<Point> > g_colorCoords;
 map<char, vector<PinHole> > g_paths;
@@ -103,6 +105,22 @@ class CrossStitch {
         }
       }
 
+      for (int z = 0; z < S*S-1; z++) {
+        int y1 = z/S;
+        int x1 = z%S;
+        Point p1(y1, x1);
+
+        for (int z2 = z+1; z2 < S*S; z2++) {
+          int y2 = z2/S;
+          int x2 = z2%S;
+          Point p2(y2, x2);
+          double dist = p1.dist(p2);
+
+          DIST_TABLE[z][z2] = dist;
+          DIST_TABLE[z2][z] = dist;
+        }
+      }
+
       fprintf(stderr,"S = %d, C = %d, N = %d\n", S, C, N);
     }
 
@@ -115,8 +133,8 @@ class CrossStitch {
       map<char, vector<Point> >::iterator it = g_colorCoords.begin();
       while (it != g_colorCoords.end()) {
         char color = (*it).first;
-        //g_paths[color] = createFIPath(color);
-        g_paths[color] = createNNPath(color, g_colorCoords[color]);
+        g_paths[color] = createFIPath(color);
+        //g_paths[color] = createNNPath(color, g_colorCoords[color]);
         it++;
       }
 
@@ -244,11 +262,15 @@ class CrossStitch {
         int index = 1;
 
         for (int k = 0; k < size; k++) {
-          Point p = coords[k];
+          Point *p = &coords[k];
+          int z1 = p->y * S + p->x;
           double mmd = DBL_MAX;
 
-          for (int j = 0; j < rsize; j++) {
-            mmd = min(mmd, p.dist(coords[j]));
+          for (int j = 0; j < min(20, rsize); j++) {
+            int jj = xor128()%rsize;
+            int z2 = coords[jj].y * S + coords[jj].x;
+            mmd = min(mmd, DIST_TABLE[z1][z2]);
+            //mmd = min(mmd, p.dist(coords[j]));
           }
 
           if (md < mmd) {
@@ -258,6 +280,7 @@ class CrossStitch {
         }
 
         Point ep = coords[index];
+        int z1 = ep.y * S + ep.x;
         coords.erase(coords.begin()+index);
 
         double minDist = DBL_MAX;
@@ -265,10 +288,15 @@ class CrossStitch {
 
         for (int j = 0; j < rsize; j++) {
           int aid = (j+1)%rsize;
+          int z2 = ppath[j].y * S + ppath[j].x;
+          int z3 = ppath[aid].y * S + ppath[aid].x;
 
-          double d1 = ep.dist(ppath[j]);
-          double d2 = ep.dist(ppath[aid]);
-          double d3 = ppath[j].dist(ppath[aid]);
+          double d1 = DIST_TABLE[z1][z2];
+          //double d1 = ep.dist(ppath[j]);
+          double d2 = DIST_TABLE[z1][z3];
+          //double d2 = ep.dist(ppath[aid]);
+          double d3 = DIST_TABLE[z2][z3];
+          //double d3 = ppath[j].dist(ppath[aid]);
           double dist = d1 + d2 - d3;
 
           if (minDist > dist) {
