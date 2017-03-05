@@ -16,6 +16,9 @@ class P {
     public String toString() {
         return "(" + r + "," + c + ")";
     }
+    public boolean equals(P other) {
+        return r == other.r && c == other.c;
+    }
     public static int dot(P A, P B, P C) {
         // dot product AB * BC
         return (B.r - A.r)*(C.r - B.r) + (B.c - A.c)*(C.c - B.c);
@@ -70,7 +73,7 @@ public class CrossStitchVis {
             lw[i] = r1.nextInt(2) + 1;
             lc[i] = r1.nextInt(C);
         }
-
+        
         for (int i = 0; i < S; ++i)
         for (int j = 0; j < S; ++j) {
             // find the topmost line which passes through this point
@@ -86,7 +89,7 @@ public class CrossStitchVis {
             if (r1.nextDouble() < pFlip) {
                 pattern[i][j] = (char)(r1.nextInt(C)+'a');
             }
-
+            
             if (pattern[i][j] != '.') {
                 nFill++;
                 nColFill[pattern[i][j] - 'a']++;
@@ -153,32 +156,29 @@ public class CrossStitchVis {
         String[] ret = embroider(patternArg);
 
         // parse return value and convert it to a list of needle points
-        // 帰ってきた値は針を通す穴の座標リストを表してい
         if (ret == null) {
             addFatalError("Failed to get result from embroider.");
             return 0.0;
         }
-
+        
         // number of points in return must be: 4 * number of filled cells + number of colors
         int L = ret.length;
-        // 穴の数は1つのセルにつき4箇所 + 使用する色の宣言を含めて 「4 * nFill + C」と同じサイズになっていなければいけない
         if (L != 4 * nFill + C) {
             addFatalError("Your return must contain exactly " + (4 * nFill + C) + " elements, and it contained " + L + ".");
             return 0.0;
         }
-
+        
         BufferedImage bi = new BufferedImage(S * SZ + 1, S * SZ + 1, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2 = (Graphics2D)bi.getGraphics();
         g2.setColor(Color.WHITE);
         g2.fillRect(0, 0, S * SZ + 1, S * SZ + 1);
-
+        
         double score = 0.0;
         int ind = 0;        // index of current element in ret
         for (int c = 0; c < C; ++c) {
             // return consists of block for each color c
             char curCol = (char)('a' + c);
             // first element must be corresponding lowercase letter
-            // 最初の要素は色の宣言になっていなければならない
             if (ret[ind].length() != 1 || ret[ind].charAt(0) != curCol) {
                 addFatalError("For each color section of return which corresponds to it must start with the color; for color " + curCol + " it started with " + ret[ind] + ".");
                 return 0.0;
@@ -186,44 +186,40 @@ public class CrossStitchVis {
             ind++;
             ArrayList<P> points = new ArrayList<>();
             // followed by some needle point coordinates
-            // 次の色の宣言があるまで繰り返し
             while (ind < L && ret[ind].length() > 1) {
                 String[] sp = ret[ind].split(" ");
-                // "行 列" のフォーマットに従っていない場合はエラー
                 if (sp.length != 2) {
                     addFatalError("Each non-color element of return must be formatted as 'ROW COL', and your return contained element '" + ret[ind] + "'.");
                     return 0.0;
                 }
-
+                
                 int row, col;
                 try {
                     row = Integer.parseInt(sp[0]);
                     col = Integer.parseInt(sp[1]);
-                // 数値への変換に失敗した場合はエラー
                 } catch (Exception e) {
                     addFatalError("Each non-color element of return must be formatted as 'ROW COL', and your return contained element '" + ret[ind] + "'.");
                     return 0.0;
                 }
-
-                // 布の範囲外に針穴を通してはいけない
+                
                 if (row < 0 || row > S || col < 0 || row > S) {
                     addFatalError("ROW and COL coordinates of each point must be between 0 and " + S + ", inclusive, and your return contained element '" + ret[ind] + "'.");
                     return 0.0;
                 }
-
-                // up to this point validation is only done on individual points;
+                
+                // up to this point validation is only done on individual points; 
                 // per-stitch and overall validation is done on the whole array of points for the color
                 // including validation that each point is in the corner of one of the cells of correct color
                 points.add(new P(row, col));
                 ind++;
             }
-
+            
             // # of points for each color must be 4 * number of cells in that color
             if (points.size() != nColFill[c] * 4 ) {
                 addFatalError("Number of points for color " + curCol + " must be " + nColFill[c] * 4 + ", while it was " + points.size() + ".");
                 return 0.0;
             }
-
+            
             // validate that stitches fill the pattern for that color properly
             // for each cell in the pattern, mark whether it is embroided correctly: diag[0] for (r,c)-(r+1,c+1) stitches, diag[1] for (r+1,c)-(r,c+1)
             boolean[][][] diag = new boolean[2][S][S];
@@ -233,12 +229,10 @@ public class CrossStitchVis {
                 P a = points.get(2*i);
                 P b = points.get(2*i + 1);
                 String st = a.toString() + "-" + b.toString();
-                // 針穴の始点と終点が同じになっていはいけない
                 if (a.equals(b)) {
                     addFatalError("Stitch " + st + " on the front side must have different starting and ending points.");
                     return 0.0;
                 }
-                // 針穴を通したあとにクロスした状態になっていない場合はエラー
                 if (Math.abs(a.r - b.r) != 1 || Math.abs(a.c - b.c) != 1) {
                     addFatalError("Stitch " + st + " on the front side must have ROW and COL of starting and ending points differ by 1.");
                     return 0.0;
@@ -256,15 +250,14 @@ public class CrossStitchVis {
                 }
                 diag[dir][row][col] = true;
             }
-
+            
             // each other pair is the backside, so can be any stitch with different endpoints
             for (int i = 0; i < nColFill[c] * 2 - 1; ++i)
-                // 前に通した針穴は次の針穴の始点に使用できない
                 if (points.get(2*i+1).equals(points.get(2*i+2))) {
                     addFatalError("Every stitch on the back side must have different starting and ending points.");
                     return 0.0;
                 }
-
+            
             // after all individual stitches are done, double-check that each cell of this color got two correct stitches
             for (int row = 0; row < S; ++row)
             for (int col = 0; col < S; ++col)
@@ -272,7 +265,7 @@ public class CrossStitchVis {
                     addFatalError("Every cell of color " + curCol + " must have two diagonal stitches on the front side.");
                     return 0.0;
                 }
-
+            
             // finally, after all validation add each back side stitch's length to the answer (front side length is fixed to nColFill[c] * 2 * sqrt(2))
             for (int i = 0; i < nColFill[c] * 2 - 1; ++i) {
                 P a = points.get(2*i+1);

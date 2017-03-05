@@ -143,7 +143,8 @@ class CrossStitch {
 
       for (int i = 0; i < C; i++) {
         char color = 'a' + i;
-        g_paths[color] = needlework(g_paths[color], TIME_LIMIT / C);
+        double rate = g_colorCoords[color].size() / (double) N;
+        g_paths[color] = needlework(g_paths[color], TIME_LIMIT * rate);
       }
 
       vector<PinHole> path = createPath();
@@ -325,9 +326,9 @@ class CrossStitch {
 
     vector<PinHole> needlework(vector<PinHole> path, double LIMIT = 2.0) {
       startCycle = getCycle();
-      int minLength = calcThreadLength(path);
-      int goodLength = minLength;
-      int length = 0;
+      double minLength = calcThreadLength(path);
+      double goodLength = minLength;
+      double length = 0.0;
       int psize = path.size();
       vector<PinHole> bestPath = path;
       ll sc = getCycle();
@@ -343,6 +344,8 @@ class CrossStitch {
         double remainTime = LIMIT - currentTime;
         int ope = xor128()%2;
 
+        //if (ope != 0) continue;
+
         do {
           i = xor128()%psize;
           j = xor128()%psize;
@@ -350,9 +353,8 @@ class CrossStitch {
 
         switch(ope) {
           case 0:
-            swapPinHoleNonDiff(i, j, path);
+            diffLength = swapPinHole(i, j, path);
             if (isCorrectHole(i, path) && isCorrectHole(j, path)) {
-              diffLength = swapPinHole(i, j, path);
             } else {
               swapPinHoleNonDiff(i, j, path);
               continue;
@@ -385,19 +387,30 @@ class CrossStitch {
             break;
         }
 
+        //length = calcThreadLength(path);
         length = goodLength + diffLength;
 
         if (minLength > length) {
+          assert(minLength > 0);
+          //fprintf(stderr,"[%d, %d] update: %f -> %f\n", i, j, minLength, length);
           bestPath = path;
           minLength = length;
         }
 
         if (goodLength > length || (xor128()%R < R*exp(-diffLength/(k*remainTime)))) {
           goodLength = length;
+          if (fabs(goodLength - calcThreadLength(path)) > 0.0001) {
+            fprintf(stderr,"[%d, %d] %f + %f = %f\n", i, j, goodLength, diffLength, calcThreadLength(path));
+            assert(false);
+          }
         } else {
           switch(ope) {
             case 0:
               swapPinHoleNonDiff(i, j, path);
+              if (fabs(goodLength - calcThreadLength(path)) > 0.0001) {
+                fprintf(stderr,"[%d, %d] %f, %f\n", i, j, goodLength, calcThreadLength(path));
+                assert(false);
+              }
               break;
             case 1:
               path[i].swapHole();
@@ -421,7 +434,7 @@ class CrossStitch {
 
       //cleanPath(bestPath);
 
-      fprintf(stderr, "tryCount = %lld\n", tryCount);
+      fprintf(stderr, "PS: %5lu,\ttryCount = %lld\n", path.size(), tryCount);
       return bestPath;
     }
 
@@ -482,13 +495,25 @@ class CrossStitch {
     }
 
     double swapPinHole(int i, int j, vector<PinHole> &path) {
-      PinHole temp = path[i];
       double beforeLength = calcLength(i, path) + calcLength(j, path);
+      if (i - j == 1) {
+        beforeLength -= path[j].end_p.dist(path[i].start_p);
+      } else if (j - i == 1) {
+        beforeLength -= path[i].end_p.dist(path[j].start_p);
+      }
+      assert(beforeLength >= 0);
 
+      PinHole temp = path[i];
       path[i] = path[j];
       path[j] = temp;
 
       double afterLength = calcLength(i, path) + calcLength(j, path);
+      if (i - j == 1) {
+        afterLength -= path[j].end_p.dist(path[i].start_p);
+      } else if (j - i == 1) {
+        afterLength -= path[i].end_p.dist(path[j].start_p);
+      }
+      assert(afterLength >= 0);
 
       return afterLength - beforeLength;
     }
@@ -501,18 +526,16 @@ class CrossStitch {
 
     double calcLength(int i, vector<PinHole> &path) {
       double length = 0.0;
-      PinHole ph2 = path[i];
 
       if (i > 0) {
-        PinHole ph1 = path[i-1];
-        length += ph2.start_p.dist(ph1.end_p);
+        length += path[i].start_p.dist(path[i-1].end_p);
       }
 
       if (i < path.size()-1) {
-        PinHole ph3 = path[i+1];
-        length += ph2.end_p.dist(ph3.start_p);
+        length += path[i].end_p.dist(path[i+1].start_p);
       }
 
+      assert(length >= 0);
       return length;
     }
 
