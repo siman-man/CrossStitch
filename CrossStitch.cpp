@@ -116,7 +116,7 @@ class CrossStitch {
       while (it != g_colorCoords.end()) {
         char color = (*it).first;
         //g_paths[color] = createFIPath(color);
-        g_paths[color] = createNNPath(color);
+        g_paths[color] = createNNPath(color, g_colorCoords[color]);
         it++;
       }
 
@@ -192,9 +192,8 @@ class CrossStitch {
       }
     }
 
-    vector<PinHole> createNNPath(char color) {
+    vector<PinHole> createNNPath(char color, vector<Point> coords) {
       vector<PinHole> path;
-      vector<Point> coords = g_colorCoords[color];
       Point bp = coords[0];
       coords.erase(coords.begin());
       int csize = coords.size();
