@@ -5,3 +5,5 @@ CrossStitch
 Rakefile
 *.png
 parse.rb
+.idea
+cmake-build-debug
