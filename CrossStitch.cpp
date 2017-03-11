@@ -59,12 +59,12 @@ struct Point {
   }
 };
 
-struct PinHole {
+struct DLine {
   char color;
   Point start_p;
   Point end_p;
 
-  PinHole(char color = -1, Point sp = Point(), Point ep = Point()) {
+  DLine(char color = -1, Point sp = Point(), Point ep = Point()) {
     this->color = color;
     this->start_p = sp;
     this->end_p = ep;
@@ -84,7 +84,7 @@ int C;
 double DIST_TABLE[10000][10000];
 vector<string> g_pattern;
 map<char, vector<Point> > g_colorCoords;
-map<char, vector<PinHole> > g_paths;
+map<char, vector<DLine> > g_paths;
 
 class CrossStitch {
   public:
@@ -147,7 +147,7 @@ class CrossStitch {
         g_paths[color] = needlework(g_paths[color], TIME_LIMIT * rate);
       }
 
-      vector<PinHole> path = createPath();
+      vector<DLine> path = createPath();
       vector<string> answer = createAnswer(path);
 
       fprintf(stderr,"CurrentScore = %f\n", calcScore(path));
@@ -155,7 +155,7 @@ class CrossStitch {
       return answer;
     }
 
-    double calcScore(vector<PinHole> points) {
+    double calcScore(vector<DLine> points) {
       double L = N * 2 * sqrt(2);
       double W = calcThreadLength(points);
 
@@ -164,13 +164,13 @@ class CrossStitch {
       return max(0.0, pow((5 - W / L) / 5, 3));
     }
 
-    vector<PinHole> createPath() {
-      vector<PinHole> paths;
+    vector<DLine> createPath() {
+      vector<DLine> paths;
 
-      map<char, vector<PinHole> >::iterator it = g_paths.begin();
+      map<char, vector<DLine> >::iterator it = g_paths.begin();
 
       while (it != g_paths.end()) {
-        vector<PinHole> path = (*it).second;
+        vector<DLine> path = (*it).second;
         int psize = path.size();
 
         for (int i = 0; i < psize; i++) {
@@ -183,13 +183,13 @@ class CrossStitch {
       return paths;
     }
 
-    vector<string> createAnswer(vector<PinHole> &path) {
+    vector<string> createAnswer(vector<DLine> &path) {
       vector<string> answer;
       int psize = path.size();
       map<char, bool> checkList;
 
       for (int i = 0; i < psize; i++) {
-        PinHole ph = path[i];
+        DLine ph = path[i];
         if (!checkList[ph.color]) {
           checkList[ph.color] = true;
           answer.push_back(string(1, ph.color));
@@ -201,7 +201,7 @@ class CrossStitch {
       return answer;
     }
 
-    void cleanPath(vector<PinHole> &path) {
+    void cleanPath(vector<DLine> &path) {
       int psize = path.size();
 
       for (int i = 0; i < psize-1; i++) {
@@ -211,8 +211,8 @@ class CrossStitch {
       }
     }
 
-    vector<PinHole> createNNPath(char color, vector<Point> coords) {
-      vector<PinHole> path;
+    vector<DLine> createNNPath(char color, vector<Point> coords) {
+      vector<DLine> path;
       Point bp = coords[0];
       coords.erase(coords.begin());
       int csize = coords.size();
@@ -222,8 +222,8 @@ class CrossStitch {
         int minId = 0;
         int bsize = coords.size();
 
-        path.push_back(createPinHole(color, Point(bp.y, bp.x), Point(bp.y+1, bp.x+1)));
-        path.push_back(createPinHole(color, Point(bp.y+1, bp.x), Point(bp.y, bp.x+1)));
+        path.push_back(createDLine(color, Point(bp.y, bp.x), Point(bp.y+1, bp.x+1)));
+        path.push_back(createDLine(color, Point(bp.y+1, bp.x), Point(bp.y, bp.x+1)));
 
         for (int j = 0; j < bsize; j++) {
           double dist = bp.dist(coords[j]);
@@ -237,16 +237,16 @@ class CrossStitch {
         coords.erase(coords.begin() + minId);
       }
 
-      path.push_back(createPinHole(color, Point(bp.y, bp.x), Point(bp.y+1, bp.x+1)));
-      path.push_back(createPinHole(color, Point(bp.y+1, bp.x), Point(bp.y, bp.x+1)));
+      path.push_back(createDLine(color, Point(bp.y, bp.x), Point(bp.y+1, bp.x+1)));
+      path.push_back(createDLine(color, Point(bp.y+1, bp.x), Point(bp.y, bp.x+1)));
 
       cleanPath(path);
 
       return path;
     }
 
-    vector<PinHole> createFIPath(char color) {
-      vector<PinHole> path;
+    vector<DLine> createFIPath(char color) {
+      vector<DLine> path;
       vector<Point> ppath;
       vector<Point> coords = g_colorCoords[color];
       Point p1 = coords[0];
@@ -311,8 +311,8 @@ class CrossStitch {
 
       for (int i = 0; i < ppath.size(); i++) {
         Point p = ppath[i];
-        path.push_back(createPinHole(color, Point(p.y, p.x), Point(p.y+1, p.x+1)));
-        path.push_back(createPinHole(color, Point(p.y+1, p.x), Point(p.y, p.x+1)));
+        path.push_back(createDLine(color, Point(p.y, p.x), Point(p.y+1, p.x+1)));
+        path.push_back(createDLine(color, Point(p.y+1, p.x), Point(p.y, p.x+1)));
       }
 
       cleanPath(path);
@@ -320,17 +320,17 @@ class CrossStitch {
       return path;
     }
 
-    PinHole createPinHole(char color, Point sp, Point ep) {
-      return PinHole(color, sp, ep);
+    DLine createDLine(char color, Point sp, Point ep) {
+      return DLine(color, sp, ep);
     }
 
-    vector<PinHole> needlework(vector<PinHole> path, double LIMIT = 2.0) {
+    vector<DLine> needlework(vector<DLine> path, double LIMIT = 2.0) {
       startCycle = getCycle();
       double minLength = calcThreadLength(path);
       double goodLength = minLength;
       double length = 0.0;
       int psize = path.size();
-      vector<PinHole> bestPath = path;
+      vector<DLine> bestPath = path;
       ll sc = getCycle();
 
       double currentTime = getTime(sc);
@@ -353,10 +353,10 @@ class CrossStitch {
 
         switch(ope) {
           case 0:
-            diffLength = swapPinHole(i, j, path);
+            diffLength = swapDLine(i, j, path);
             if (isCorrectHole(i, path) && isCorrectHole(j, path)) {
             } else {
-              swapPinHoleNonDiff(i, j, path);
+              swapDLineNonDiff(i, j, path);
               continue;
             }
             break;
@@ -368,11 +368,11 @@ class CrossStitch {
             }
             break;
           case 2:
-            diffLength = insertPinHole(i, j, path);
+            diffLength = insertDLine(i, j, path);
             if (isCorrectHole(i, path) && isCorrectHole(j, path)) {
               //diffLength = calcThreadLength(path) - goodLength;
             } else {
-              insertPinHole(j, i, path);
+              insertDLine(j, i, path);
               continue;
             }
             break;
@@ -406,7 +406,7 @@ class CrossStitch {
         } else {
           switch(ope) {
             case 0:
-              swapPinHoleNonDiff(i, j, path);
+              swapDLineNonDiff(i, j, path);
               if (fabs(goodLength - calcThreadLength(path)) > 0.0001) {
                 fprintf(stderr,"[%d, %d] %f, %f\n", i, j, goodLength, calcThreadLength(path));
                 assert(false);
@@ -416,7 +416,7 @@ class CrossStitch {
               path[i].swapHole();
               break;
             case 2:
-              insertPinHole(j, i, path);
+              insertDLine(j, i, path);
               break;
             case 3:
               resolveConflict(i, j, path);
@@ -438,7 +438,7 @@ class CrossStitch {
       return bestPath;
     }
 
-    bool isCorrectPath(vector<PinHole> &path) {
+    bool isCorrectPath(vector<DLine> &path) {
       int psize = path.size();
 
       for (int i = 0; i < psize; i++) {
@@ -448,7 +448,7 @@ class CrossStitch {
       return true;
     }
 
-    bool isCorrectHole(int i, vector<PinHole> &path) {
+    bool isCorrectHole(int i, vector<DLine> &path) {
       if (i > 0) {
         if (path[i].start_p == path[i-1].end_p) return false;
       }
@@ -460,8 +460,8 @@ class CrossStitch {
       return true;
     }
 
-    double insertPinHole(int i, int j, vector<PinHole> &path) {
-      PinHole ph = path[i];
+    double insertDLine(int i, int j, vector<DLine> &path) {
+      DLine ph = path[i];
       double beforeLength = calcLength(i, path) + calcLength(j, path);
 
       path.erase(path.begin()+i);
@@ -471,7 +471,7 @@ class CrossStitch {
       return afterLength - beforeLength;
     }
 
-    void resolveConflict(int i, int j, vector<PinHole> &path) {
+    void resolveConflict(int i, int j, vector<DLine> &path) {
       if (i > j) {
         int t = i;
         i = j;
@@ -479,7 +479,7 @@ class CrossStitch {
       }
 
       while (i < j) {
-        PinHole temp = path[i];
+        DLine temp = path[i];
         path[i] = path[j];
         path[j] = temp;
         i++;
@@ -487,14 +487,14 @@ class CrossStitch {
       }
     }
 
-    double switchHole(int i, vector<PinHole> &path) {
+    double switchHole(int i, vector<DLine> &path) {
       double beforeLength = calcLength(i, path);
       path[i].swapHole();
       double afterLength = calcLength(i, path);
       return afterLength - beforeLength;
     }
 
-    double swapPinHole(int i, int j, vector<PinHole> &path) {
+    double swapDLine(int i, int j, vector<DLine> &path) {
       double beforeLength = calcLength(i, path) + calcLength(j, path);
       if (i - j == 1) {
         beforeLength -= path[j].end_p.dist(path[i].start_p);
@@ -503,7 +503,7 @@ class CrossStitch {
       }
       assert(beforeLength >= 0);
 
-      PinHole temp = path[i];
+      DLine temp = path[i];
       path[i] = path[j];
       path[j] = temp;
 
@@ -518,13 +518,13 @@ class CrossStitch {
       return afterLength - beforeLength;
     }
 
-    void swapPinHoleNonDiff(int i, int j, vector<PinHole> &path) {
-      PinHole temp = path[i];
+    void swapDLineNonDiff(int i, int j, vector<DLine> &path) {
+      DLine temp = path[i];
       path[i] = path[j];
       path[j] = temp;
     }
 
-    double calcLength(int i, vector<PinHole> &path) {
+    double calcLength(int i, vector<DLine> &path) {
       double length = 0.0;
 
       if (i > 0) {
@@ -539,13 +539,13 @@ class CrossStitch {
       return length;
     }
 
-    double calcThreadLength (vector<PinHole> &npoints) {
+    double calcThreadLength (vector<DLine> &npoints) {
       double length = 0.0;
       int size = npoints.size();
 
       for (int i = 0; i < size-1; i++) {
-        PinHole ph1 = npoints[i];
-        PinHole ph2 = npoints[i+1];
+        DLine ph1 = npoints[i];
+        DLine ph2 = npoints[i+1];
 
         if (ph1.color != ph2.color) continue;
         length += ph1.end_p.dist(ph2.start_p);
