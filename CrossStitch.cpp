@@ -342,7 +342,7 @@ class CrossStitch {
 
       while (currentTime < LIMIT) {
         double remainTime = LIMIT - currentTime;
-        int ope = xor128()%2;
+        int ope = xor128()%3;
 
         //if (ope != 0) continue;
 
@@ -367,7 +367,7 @@ class CrossStitch {
               continue;
             }
             break;
-          case 2:
+          case 3:
             diffLength = insertDLine(i, j, path);
             if (isCorrectHole(i, path) && isCorrectHole(j, path)) {
               //diffLength = calcThreadLength(path) - goodLength;
@@ -376,7 +376,7 @@ class CrossStitch {
               continue;
             }
             break;
-          case 3:
+          case 2:
             resolveConflict(i, j, path);
             if (isCorrectPath(path)) {
               diffLength = calcThreadLength(path) - goodLength;
@@ -415,10 +415,10 @@ class CrossStitch {
             case 1:
               path[i].swapHole();
               break;
-            case 2:
+            case 3:
               insertDLine(j, i, path);
               break;
-            case 3:
+            case 2:
               resolveConflict(i, j, path);
               break;
           }
@@ -479,12 +479,16 @@ class CrossStitch {
       }
 
       while (i < j) {
+        path[i].swapHole();
+        path[j].swapHole();
         DLine temp = path[i];
         path[i] = path[j];
         path[j] = temp;
         i++;
         j--;
       }
+
+      //if (i == j) path[i].swapHole();
     }
 
     double switchHole(int i, vector<DLine> &path) {
@@ -563,7 +567,7 @@ template<class T> void getVector(vector<T>& v) {
 int main() {
   int S;
   cin >> S;
-  TIME_LIMIT = 2.0;
+  TIME_LIMIT = 10.0;
   vector<string> pattern(S);
   getVector(pattern);
   CrossStitch cs;
