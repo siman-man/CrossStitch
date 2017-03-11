@@ -573,14 +573,14 @@ class CrossStitch {
       return length;
     }
 
-    double calcThreadLength (vector<DLine> &npoints) {
+    double calcThreadLength (vector<DLine> &path) {
       double length = 0.0;
-      int size = npoints.size();
+      int psize = path.size();
 
       //fprintf(stderr,"calcThreadLength => from: %d, to: %d\n", 0, size-1);
-      for (int i = 0; i < size-1; i++) {
-        DLine ph1 = npoints[i];
-        DLine ph2 = npoints[i+1];
+      for (int i = 0; i < psize-1; i++) {
+        DLine ph1 = path[i];
+        DLine ph2 = path[i+1];
 
         if (ph1.color != ph2.color) continue;
         length += ph1.end_p.dist(ph2.start_p);
