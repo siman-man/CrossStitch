@@ -388,8 +388,7 @@ public:
             switch (ope) {
                 case 0:
                     diffLength = swapDLine(i, j, path);
-                    if (isCorrectHole(i, path) && isCorrectHole(j, path)) {
-                    } else {
+                    if (!isCorrectHole(i, path) || !isCorrectHole(j, path)) {
                         swapDLineNoDiff(i, j, path);
                         continue;
                     }
@@ -404,18 +403,14 @@ public:
                 case 2:
                     if (i == path.size() - 1) i--;
                     diffLength = swapswap(i, path);
-                    if (isCorrectHole(i, path) && isCorrectHole(i + 1, path)) {
-                        //diffLength = calcThreadLength(path) - goodLength;
-                    } else {
+                    if (!isCorrectHole(i, path) || !isCorrectHole(i + 1, path)) {
                         swapswap(i, path);
                         continue;
                     }
                     break;
                 case 3:
                     diffLength = resolveConflict(i, j, path);
-                    if (isCorrectPath(path)) {
-                        //diffLength = calcThreadLength(path) - goodLength;
-                    } else {
+                    if (!isCorrectHole(i, path) || !isCorrectHole(j, path)) {
                         resolveConflict(i, j, path);
                         continue;
                     }
@@ -434,10 +429,13 @@ public:
 
             if (goodLength > length || (xor128() % R < R * exp(-diffLength / (k * remainTime)))) {
                 goodLength = length;
+
+                /*
                 if (fabs(goodLength - calcThreadLength(path)) > 0.0001) {
                     fprintf(stderr, "[%d, %d] %f + %f = %f\n", i, j, goodLength, diffLength, calcThreadLength(path));
                     assert(false);
                 }
+                 */
             } else {
                 switch (ope) {
                     case 0:

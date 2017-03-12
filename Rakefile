@@ -3,10 +3,10 @@ require 'open3'
 PROBLEM_NAME = 'CrossStitch'
 ROUND_ID = 16887
 TESTER = 'tester.jar'
-#SEED = 10
+SEED = 5
 #SEED = 2008
 #SEED = 2592
-SEED = 2487
+#SEED = 2487
 #SEED = 1081
 
 desc 'c++ file compile'
