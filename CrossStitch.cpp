@@ -227,15 +227,15 @@ public:
         int maxId = 0;
 
         for (int i = 0; i < psize; i++) {
-            double length = path[i].end_p.dist(path[(i+1)%psize].start_p);
+            double length = path[i].end_p.dist(path[(i + 1) % psize].start_p);
             if (maxLength < length) {
                 maxLength = length;
-                maxId = i+1;
+                maxId = i + 1;
             }
         }
 
         for (int i = 0; i < psize; i++) {
-            npath.push_back(path[(i+maxId)%psize]);
+            npath.push_back(path[(i + maxId) % psize]);
         }
 
         return npath;
@@ -397,7 +397,7 @@ public:
                         continue;
                     }
                     break;
-                case 3:
+                case 2:
                     if (i == path.size() - 1) i--;
                     diffLength = swapswap(i, path);
                     if (isCorrectHole(i, path) && isCorrectHole(i + 1, path)) {
@@ -407,7 +407,7 @@ public:
                         continue;
                     }
                     break;
-                case 2:
+                case 3:
                     diffLength = resolveConflict(i, j, path);
                     if (isCorrectPath(path)) {
                         //diffLength = calcThreadLength(path) - goodLength;
@@ -442,10 +442,10 @@ public:
                     case 1:
                         path[i].swapHole();
                         break;
-                    case 3:
+                    case 2:
                         swapswap(i, path);
                         break;
-                    case 2:
+                    case 3:
                         resolveConflict(i, j, path);
                         break;
                 }
