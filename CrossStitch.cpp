@@ -1,15 +1,11 @@
 // C++11
 #include <algorithm>
-#include <cstdlib>
 #include <math.h>
 #include <iostream>
-#include <string.h>
 #include <cassert>
 #include <float.h>
 #include <map>
-#include <sstream>
 #include <vector>
-#include <string>
 
 using namespace std;
 typedef long long ll;
@@ -45,12 +41,10 @@ double getTime(unsigned long long int begin_cycle) {
 struct Point {
     int y;
     int x;
-    int z;
 
     Point(int y = -1, int x = -1) {
         this->y = y;
         this->x = x;
-        this->z = y * S + x;
     }
 
     double dist(Point p) {
@@ -87,7 +81,6 @@ struct DLine {
     }
 };
 
-vector<string> g_pattern;
 map<char, vector<Point> > g_colorCoords;
 map<char, vector<DLine> > g_paths;
 
@@ -97,7 +90,6 @@ public:
         S = pattern.size();
         C = 0;
         N = 0;
-        g_pattern = pattern;
 
         for (int y = 0; y < S; y++) {
             for (int x = 0; x < S; x++) {
