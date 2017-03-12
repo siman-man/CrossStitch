@@ -238,6 +238,8 @@ public:
             npath.push_back(path[(i + maxId) % psize]);
         }
 
+        cleanPath(npath);
+
         return npath;
     }
 
@@ -297,9 +299,9 @@ public:
                 int z1 = p->y * S + p->x;
                 double mmd = DBL_MAX;
 
-                for (int j = 0; j < min(20, rsize); j++) {
+                for (int j = 0; j < min(10, rsize); j++) {
                     int jj = xor128() % rsize;
-                    int z2 = coords[jj].y * S + coords[jj].x;
+                    int z2 = ppath[jj].y * S + ppath[jj].x;
                     mmd = min(mmd, DIST_TABLE[z1][z2]);
                     //mmd = min(mmd, p.dist(coords[j]));
                 }
@@ -461,7 +463,7 @@ public:
             }
         }
 
-        //cleanPath(bestPath);
+        cleanPath(bestPath);
 
         fprintf(stderr, "PS: %5lu,\ttryCount = %lld\n", path.size(), tryCount);
         return bestPath;
