@@ -372,13 +372,15 @@ public:
 
         while (currentTime < LIMIT) {
             double remainTime = LIMIT - currentTime;
+            double rate = remainTime / LIMIT;
+            int range = max(5.0, rate * psize);
             int ope = xor128() % 4;
 
             //if (ope != 0) continue;
 
             do {
                 i = xor128() % psize;
-                j = xor128() % psize;
+                j = (i+xor128()%range)%psize;
             } while (i == j);
 
             switch (ope) {
