@@ -3,7 +3,7 @@ require 'open3'
 PROBLEM_NAME = 'CrossStitch'
 ROUND_ID = 16887
 TESTER = 'tester.jar'
-SEED = 5
+SEED = 9
 #SEED = 2008
 #SEED = 2592
 #SEED = 2487

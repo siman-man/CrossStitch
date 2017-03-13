@@ -368,7 +368,7 @@ public:
             double remainTime = LIMIT - currentTime;
             double rate = remainTime / LIMIT;
             int range = max(5.0, rate * psize);
-            int ope = xor128() % 4;
+            int ope = xor128() % 5;
 
             //if (ope != 0) continue;
 
@@ -407,6 +407,16 @@ public:
                         continue;
                     }
                     break;
+                case 4:
+                    if (i == path.size() - 1) i--;
+                    diffLength = swapswap2(i, path);
+                    if (!isCorrectHole(i, path) || !isCorrectHole(i + 1, path)) {
+                        swapswap2(i, path);
+                        path[i].swapHole();
+                        path[i+1].swapHole();
+                        continue;
+                    }
+                    break;
             }
 
             //length = calcThreadLength(path);
@@ -441,6 +451,11 @@ public:
                         break;
                     case 3:
                         resolveConflict(i, j, path);
+                        break;
+                    case 4:
+                        swapswap2(i, path);
+                        path[i].swapHole();
+                        path[i+1].swapHole();
                         break;
                 }
             }
@@ -501,6 +516,20 @@ public:
 
         path[i].swapHole();
         path[i + 1].swapHole();
+
+        double al = calcRangedThreadLength(i, i + 1, path);
+        return al - bl;
+    }
+
+    double swapswap2(int i, vector<DLine> &path) {
+        double bl = calcRangedThreadLength(i, i + 1, path);
+
+        DLine ph = path[i];
+        path[i] = path[i + 1];
+        path[i + 1] = ph;
+
+        path[i].swapHole();
+        //path[i + 1].swapHole();
 
         double al = calcRangedThreadLength(i, i + 1, path);
         return al - bl;
