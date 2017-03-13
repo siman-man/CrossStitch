@@ -360,7 +360,7 @@ public:
         double currentTime = getTime(sc);
         ll tryCount = 0;
         int R = 1000000;
-        double k = 0.4;
+        double k = 0.1;
         double diffLength = 0.0;
         int i, j;
 
