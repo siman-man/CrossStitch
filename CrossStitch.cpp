@@ -134,7 +134,6 @@ public:
         while (it != g_colorCoords.end()) {
             char color = (*it).first;
             g_paths[color] = createFIPath(color);
-            //g_paths[color] = createNNPath(color, g_colorCoords[color]);
             it++;
         }
 
@@ -233,40 +232,6 @@ public:
         cleanPath(npath);
 
         return npath;
-    }
-
-    vector<DLine> createNNPath(char color, vector<Point> coords) {
-        vector<DLine> path;
-        Point bp = coords[0];
-        coords.erase(coords.begin());
-        int csize = coords.size();
-
-        for (int i = 0; i < csize; i++) {
-            double minDist = 99999.0;
-            int minId = 0;
-            int bsize = coords.size();
-
-            path.push_back(createDLine(color, Point(bp.y, bp.x), Point(bp.y + 1, bp.x + 1)));
-            path.push_back(createDLine(color, Point(bp.y + 1, bp.x), Point(bp.y, bp.x + 1)));
-
-            for (int j = 0; j < bsize; j++) {
-                double dist = bp.dist(coords[j]);
-                if (minDist > dist) {
-                    minDist = dist;
-                    minId = j;
-                }
-            }
-
-            bp = coords[minId];
-            coords.erase(coords.begin() + minId);
-        }
-
-        path.push_back(createDLine(color, Point(bp.y, bp.x), Point(bp.y + 1, bp.x + 1)));
-        path.push_back(createDLine(color, Point(bp.y + 1, bp.x), Point(bp.y, bp.x + 1)));
-
-        cleanPath(path);
-
-        return path;
     }
 
     vector<DLine> createFIPath(char color) {
