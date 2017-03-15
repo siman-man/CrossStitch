@@ -47,14 +47,14 @@ struct Point {
         this->x = x;
     }
 
-    double dist(Point p) {
+    double dist(Point &p) {
         int dy = y - p.y;
         int dx = x - p.x;
         return sqrt(dy * dy + dx * dx);
         //return DIST_TABLE[z][p.z];
     }
 
-    bool operator==(Point p) {
+    bool operator==(Point &p) {
         return y == p.y && x == p.x;
     }
 
@@ -388,7 +388,6 @@ public:
             length = goodLength + diffLength;
 
             if (minLength > length) {
-                assert(minLength > 0);
                 //fprintf(stderr,"[%d, %d] update: %f -> %f\n", i, j, minLength, length);
                 bestPath = path;
                 minLength = length;
@@ -396,13 +395,6 @@ public:
 
             if (goodLength > length || (xor128() % R < R * exp(-diffLength / (k * remainTime)))) {
                 goodLength = length;
-
-                /*
-                if (fabs(goodLength - calcThreadLength(path)) > 0.0001) {
-                    fprintf(stderr, "[%d, %d] %f + %f = %f\n", i, j, goodLength, diffLength, calcThreadLength(path));
-                    assert(false);
-                }
-                 */
             } else {
                 switch (ope) {
                     case 0:
@@ -439,16 +431,6 @@ public:
         return bestPath;
     }
 
-    bool isCorrectPath(vector<DLine> &path) {
-        int psize = path.size();
-
-        for (int i = 0; i < psize; i++) {
-            if (!isCorrectHole(i, path)) return false;
-        }
-
-        return true;
-    }
-
     bool isCorrectHole(int i, vector<DLine> &path) {
         if (i > 0) {
             if (path[i].start_p == path[i - 1].end_p) return false;
@@ -459,17 +441,6 @@ public:
         }
 
         return true;
-    }
-
-    double insertDLine(int i, int j, vector<DLine> &path) {
-        DLine ph = path[i];
-        double beforeLength = calcLength(i, path) + calcLength(j, path);
-
-        path.erase(path.begin() + i);
-        path.insert(path.begin() + j, ph);
-
-        double afterLength = calcLength(i, path) + calcLength(j, path);
-        return afterLength - beforeLength;
     }
 
     double swapswap(int i, vector<DLine> &path) {
@@ -509,13 +480,6 @@ public:
         int oi = i;
         int oj = j;
 
-/*
-      if (fabs(calcRangedThreadLength(0, path.size(), path) - calcThreadLength(path)) > 0.01) {
-        fprintf(stderr,"dist1 = %f\n", calcRangedThreadLength(0, path.size(), path));
-        fprintf(stderr,"dist2 = %f", calcThreadLength(path));
-        assert(false);
-      }
-      */
         double bl = calcRangedThreadLength(oi, oj, path);
 
         while (i < j) {
@@ -547,7 +511,6 @@ public:
         } else if (j - i == 1) {
             beforeLength -= path[i].end_p.dist(path[j].start_p);
         }
-        assert(beforeLength >= 0);
 
         DLine temp = path[i];
         path[i] = path[j];
@@ -559,7 +522,6 @@ public:
         } else if (j - i == 1) {
             afterLength -= path[i].end_p.dist(path[j].start_p);
         }
-        assert(afterLength >= 0);
 
         return afterLength - beforeLength;
     }
@@ -581,7 +543,6 @@ public:
             length += path[i].end_p.dist(path[i + 1].start_p);
         }
 
-        assert(length >= 0);
         return length;
     }
 
@@ -603,11 +564,9 @@ public:
 
     double calcRangedThreadLength(int from, int to, vector<DLine> &path) {
         double length = 0.0;
-        assert(from < to);
         from = max(0, from - 1);
         to = min((int) path.size() - 1, to + 1);
 
-        //fprintf(stderr,"calcRangedThreadLength => from: %d, to: %d\n", from, to);
         for (int i = from; i < to; i++) {
             DLine ph1 = path[i];
             DLine ph2 = path[i + 1];
@@ -629,7 +588,7 @@ void getVector(vector<T> &v) {
 int main() {
     int S;
     cin >> S;
-    TIME_LIMIT = 10.0;
+    TIME_LIMIT = 1.0;
     vector<string> pattern(S);
     getVector(pattern);
     CrossStitch cs;
